@@ -1,0 +1,185 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Currency Influence Treemap</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: #000000;
+            color: white;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        #chart {
+            width: 95vw;
+            height: 95vh;
+        }
+        .currency-title {
+            font-size: 32px;
+            font-weight: 600;
+            text-anchor: middle;
+        }
+        .tooltip {
+            position: absolute;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.8);
+            color: #fff;
+            border-radius: 5px;
+            pointer-events: none;
+            font-size: 14px;
+            font-weight: 300;
+        }
+    </style>
+</head>
+<body>
+    <div id="chart"></div>
+
+    <script>
+        const data = {
+            name: "Currencies",
+            children: [
+                {
+                    name: "JPY",
+                    children: [
+                        {name: "Federal Reserve Policy", value: 20},
+                        {name: "GDP Growth", value: 14},
+                        {name: "Inflation Rate", value: 12},
+                        {name: "Trade Balance", value: 10},
+                        {name: "Industrial Production", value: 8},
+                        {name: "Unemployment Rate", value: 7},
+                        {name: "Consumer Confidence", value: 6},
+                        {name: "Stock Market Performance", value: 5},
+                        {name: "Government Debt", value: 4},
+                        {name: "Foreign Exchange Reserves", value: 3},
+                        {name: "Retail Sales", value: 3},
+                        {name: "Housing Starts", value: 2},
+                        {name: "PMI", value: 2},
+                        {name: "Current Account Balance", value: 1.5},
+                        {name: "Bank of Japan Policy", value: 1.5},
+                        {name: "Export Data", value: 1},
+                        {name: "Import Data", value: 1},
+                        {name: "Business Sentiment", value: 0.5},
+                        {name: "Commodity Prices", value: 0.5}
+                    ]
+                },
+                {
+                    name: "USD",
+                    children: [
+                        {name: "Interest Rates", value: 18},
+                        {name: "GDP Growth", value: 16},
+                        {name: "Inflation Rate", value: 14},
+                        {name: "Employment Data", value: 12},
+                        {name: "Trade Balance", value: 8},
+                        {name: "Consumer Spending", value: 6},
+                        {name: "Stock Market Performance", value: 5},
+                        {name: "Government Debt", value: 4},
+                        {name: "Housing Market", value: 3},
+                        {name: "Industrial Production", value: 3},
+                        {name: "Geopolitical Events", value: 2},
+                        {name: "Energy Prices", value: 2},
+                        {name: "Consumer Confidence", value: 1.5},
+                        {name: "Retail Sales", value: 1.5},
+                        {name: "Durable Goods Orders", value: 1},
+                        {name: "Manufacturing PMI", value: 0.5},
+                        {name: "Services PMI", value: 0.5}
+                    ]
+                }
+            ]
+        };
+
+        const width = window.innerWidth * 0.95;
+        const height = window.innerHeight * 0.95;
+
+        const color = d3.scaleLinear()
+            .domain([0, 0.05, 0.1, 0.2, 1])
+            .range(["#000033", "#000066", "#0000CC", "#3366FF", "#FFFFFF"]);
+
+        const treemap = d3.treemap()
+            .size([width, height])
+            .padding(2)
+            .round(true);
+
+        const root = d3.hierarchy(data)
+            .sum(d => d.value)
+            .sort((a, b) => b.value - a.value);
+
+        treemap(root);
+
+        const svg = d3.select("#chart")
+            .append("svg")
+            .attr("width", width)
+            .attr("height", height);
+
+        const tooltip = d3.select("body").append("div")
+            .attr("class", "tooltip")
+            .style("opacity", 0);
+
+        const cell = svg.selectAll("g")
+            .data(root.leaves())
+            .enter().append("g")
+            .attr("transform", d => `translate(${d.x0},${d.y0})`);
+
+        cell.append("rect")
+            .attr("width", d => d.x1 - d.x0)
+            .attr("height", d => d.y1 - d.y0)
+            .attr("fill", d => color(d.value / d.parent.value))
+            .attr("stroke", "#FFFFFF")
+            .attr("stroke-width", 0.5)
+            .on("mouseover", function(event, d) {
+                tooltip.transition()
+                    .duration(200)
+                    .style("opacity", .9);
+                tooltip.html(`${d.data.name}<br>${d.value}%`)
+                    .style("left", (event.pageX) + "px")
+                    .style("top", (event.pageY - 28) + "px");
+            })
+            .on("mouseout", function(d) {
+                tooltip.transition()
+                    .duration(500)
+                    .style("opacity", 0);
+            });
+
+        cell.append("text")
+            .attr("x", d => (d.x1 - d.x0) / 2)
+            .attr("y", d => (d.y1 - d.y0) / 2)
+            .attr("text-anchor", "middle")
+            .attr("dominant-baseline", "middle")
+            .text(d => d.data.name)
+            .attr("font-size", d => Math.min((d.x1 - d.x0) / 8, (d.y1 - d.y0) / 4, 12))
+            .attr("fill", d => d.value / d.parent.value > 0.1 ? "white" : "#CCCCCC")
+            .style("font-weight", "400")
+            .each(function(d) {
+                const self = d3.select(this);
+                const textLength = self.node().getComputedTextLength();
+                const textHeight = self.node().getBBox().height;
+                if (textLength > (d.x1 - d.x0)) {
+                    self.text(d.data.name.slice(0, Math.floor(d.data.name.length * (d.x1 - d.x0) / textLength)) + '...');
+                }
+                if (textHeight > (d.y1 - d.y0)) {
+                    self.text('');
+                }
+            });
+
+        svg.append("text")
+            .attr("x", width * 0.25)
+            .attr("y", 40)
+            .attr("class", "currency-title")
+            .text("USD");
+
+        svg.append("text")
+            .attr("x", width * 0.75)
+            .attr("y", 40)
+            .attr("class", "currency-title")
+            .text("JPY");
+    </script>
+</body>
+</html>
